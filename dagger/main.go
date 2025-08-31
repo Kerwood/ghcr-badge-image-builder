@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -57,6 +58,9 @@ func (m *GhcrBadge) BuildAndPublish(ctx context.Context, ghUser string, ghAuthTo
 		WithRegistryAuth("ghcr.io", ghUser, ghAuthToken)
 
 	for _, tag := range []string{"latest", latestTag} {
+		if strings.HasPrefix(tag, "v") {
+			tag = tag[1:]
+		}
 		_, err := container.Publish(ctx, "ghcr.io/kerwood/ghcr-badge:"+tag)
 		if err != nil {
 			return err
