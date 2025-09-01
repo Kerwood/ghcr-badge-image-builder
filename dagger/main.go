@@ -27,37 +27,43 @@ import (
 type GhcrBadge struct{}
 
 // Returns a container with the Python build environment
-func (m *GhcrBadge) BuildEnv(tag string) *dagger.Container {
+func (m *GhcrBadge) BuildEnv(gitRef string) *dagger.Container {
 	return dag.Container().
 		From("python:3.11-slim").
 		WithSymlink("/usr/local/bin/python3", "/usr/bin/python3").
 		WithExec([]string{"apt", "update"}).
 		WithExec([]string{"apt", "install", "-y", "git"}).
 		WithExec([]string{"/usr/bin/python3", "-m", "venv", "/opt/venv"}).
-		WithExec([]string{"/opt/venv/bin/pip", "install", "git+https://github.com/eggplants/ghcr-badge@" + tag})
+		WithExec([]string{"/opt/venv/bin/pip", "install", "git+https://github.com/eggplants/ghcr-badge@" + gitRef})
 }
 
-// Builds the ghcr-badge image and pushes it to the registry
-func (m *GhcrBadge) BuildAndPublish(ctx context.Context, ghUser string, ghAuthToken *dagger.Secret) error {
-
-	latestTag, err := getGhcrBadgeLatestVersion()
-	if err != nil {
-		return err
-	}
-
-	buildEnv := m.BuildEnv(latestTag)
+// Builds the runtime image and return the container
+func (m *GhcrBadge) Build(gitRef string) *dagger.Container {
+	buildEnv := m.BuildEnv(gitRef)
 
 	container := dag.Container().
 		From("gcr.io/distroless/python3-debian12:nonroot").
-		WithLabel("org.opencontainers.image.version", latestTag).
+		WithLabel("org.opencontainers.image.version", gitRef).
 		WithLabel("org.opencontainers.image.source", "https://github.com/kerwood/ghcr-badge-image-builder").
 		WithLabel("org.opencontainers.image.created", time.Now().String()).
 		WithDirectory("/opt/venv", buildEnv.Directory("/opt/venv")).
 		WithEnvVariable("PATH", "/opt/venv/bin", dagger.ContainerWithEnvVariableOpts{Expand: true}).
-		WithEntrypoint([]string{"ghcr-badge-server"}).
-		WithRegistryAuth("ghcr.io", ghUser, ghAuthToken)
+		WithEntrypoint([]string{"ghcr-badge-server"})
 
-	for _, tag := range []string{"latest", latestTag} {
+	return container
+}
+
+// Builds the ghcr-badge image and pushes it to the registry
+func (m *GhcrBadge) BuildAndPush(ctx context.Context, ghUser string, ghAuthToken *dagger.Secret) error {
+
+	latestReleaseTag, err := getGhcrBadgeLatestVersion()
+	if err != nil {
+		return err
+	}
+
+	container := m.Build(latestReleaseTag).WithRegistryAuth("ghcr.io", ghUser, ghAuthToken)
+
+	for _, tag := range []string{"latest", latestReleaseTag} {
 		if strings.HasPrefix(tag, "v") {
 			tag = tag[1:]
 		}
