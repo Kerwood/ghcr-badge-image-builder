@@ -1,4 +1,4 @@
-name: Build and publish
+name: Build and push
 
 on:
   workflow_dispatch:
@@ -8,15 +8,15 @@ permissions:
 
 jobs:
   release:
-    name: Build and Publish
+    name: Build and Push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dagger/dagger-for-github@8.0.0
-        name: build-and-publish
+        name: build-and-push
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          call: build-and-publish --gh-user ${{ github.actor }} --gh-auth-token env://GH_TOKEN
+          call: build-and-push --gh-user ${{ github.actor }} --gh-auth-token env://GH_TOKEN
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
           version: "latest"
