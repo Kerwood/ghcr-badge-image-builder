@@ -57,3 +57,24 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 ```
 
+## Building the image
+You can build and publish the image in several ways.
+
+### Docker
+Build the image directly with Docker.
+```sh
+docker build -t <registry>/ghcr-badge:0.5.1 --build-arg VERSION=v0.5.1 .
+```
+
+### Dagger
+Export the image to your local Docker using the Dagger module.
+
+```sh
+dagger -c 'build v0.5.1 | export-image ghcr-badge'
+```
+
+Authenticate and push the image to a registry (e.g., Docker Hub).
+```sh
+export PASSWD=<your-docker-hub-password>
+dagger -c 'build v0.5.1 | with-registry-auth docker.io <username> env://PASSWD | publish docker.io/<username>/ghcr-badge'
+```
